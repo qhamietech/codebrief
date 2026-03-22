@@ -6,6 +6,26 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
+  const [copied, setCopied] = useState(false)
+
+  const SAMPLE_OUTPUT = `**WHAT THIS PROJECT DOES**
+PawSOS is a mobile emergency response app that connects pet owners in crisis with nearby volunteer rescuers in real time. When a pet is injured or in danger, the owner sends an SOS and trained volunteers are notified instantly with live GPS location. It is built for communities where animals suffer because help arrives too late.
+
+**THE MAIN FILES AND WHAT THEY DO**
+- App.js: The entry point that controls which screen the user sees based on whether they are logged in or not.
+- firebaseConfig.js: Connects the app to the Firebase database and authentication system.
+- SOSScreen.js: The emergency button screen where a pet owner triggers an alert and shares their live location.
+- ResponderDashboard.js: The screen volunteers see showing all active emergencies near them on a map.
+- TriageScreen.js: Guides the pet owner through emergency first aid steps while help is on the way.
+- AuthScreen.js: Handles login and registration for both pet owners and volunteers.
+
+**HOW IT ALL CONNECTS**
+When a user opens the app they either log in as a pet owner or register as a volunteer. If an emergency happens the owner taps SOS which writes to the Firebase database instantly. Every volunteer within range sees the alert appear on their dashboard in real time without refreshing. The volunteer accepts the case, their location is shared with the owner, and the triage screen activates to guide the owner through first aid until help arrives.
+
+**WHAT YOU WOULD TELL A DEVELOPER**
+- Firebase Firestore real-time listeners power the live sync between owner and responder — understanding onSnapshot is essential before touching this code.
+- The app uses role-based access control with three tiers: pet owner, student volunteer, and qualified vet — each sees a completely different interface.
+- Push notifications are handled through Expo Notifications and require careful permission handling on both Android and iOS before they work reliably.`
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -20,6 +40,19 @@ function App() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSample = () => {
+    setResult(SAMPLE_OUTPUT)
+    setError(null)
+    setRepoUrl('https://github.com/qhamietech/PawSOS')
+    window.scrollTo({ top: 400, behavior: 'smooth' })
+  }
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(result)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   const formatResult = (text) => {
@@ -46,7 +79,7 @@ function App() {
             color: '#aaa',
             lineHeight: '1.7'
           }}>
-            <span style={{ color: '#555', flexShrink: 0 }}>—</span>
+            <span style={{ color: '#555', flexShrink: 0 }}>{'-'}</span>
             <span>{line.replace(/^[-•]\s/, '')}</span>
           </div>
         )
@@ -63,6 +96,18 @@ function App() {
       )
     })
   }
+
+  const Footer = () => (
+    <div style={{
+      marginTop: '2rem',
+      textAlign: 'center',
+      fontSize: '0.8rem',
+      color: '#333'
+    }}>
+     {'Built by '}
+    <a href="https://github.com/qhamietech" target="_blank" rel="noreferrer" style={{ color: '#444', textDecoration: 'none' }}>Qhamisa Tobie</a>
+    </div>
+  )
 
   return (
     <div style={{
@@ -107,10 +152,33 @@ function App() {
             color: '#666',
             lineHeight: '1.7',
             maxWidth: '480px',
-            margin: '0 auto'
+            margin: '0 auto 1.5rem'
           }}>
             Paste a public GitHub repo. Get a plain English explanation of everything inside it — instantly.
           </p>
+          <button
+            onClick={handleSample}
+            style={{
+              backgroundColor: 'transparent',
+              border: '1px solid #2a2a2a',
+              borderRadius: '20px',
+              color: '#888',
+              padding: '6px 16px',
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={e => {
+              e.target.style.borderColor = '#444'
+              e.target.style.color = '#aaa'
+            }}
+            onMouseLeave={e => {
+              e.target.style.borderColor = '#2a2a2a'
+              e.target.style.color = '#888'
+            }}
+          >
+            {'✦ See a sample output'}
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} style={{
@@ -165,10 +233,27 @@ function App() {
             color: '#555'
           }}>
             <div style={{
-              fontSize: '0.9rem',
-              marginBottom: '0.5rem'
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '6px',
+              marginBottom: '1.5rem'
             }}>
-              Fetching files and analysing with AI...
+              {[0,1,2].map(i => (
+                <div key={i} style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: '#333',
+                  animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite`
+                }}/>
+              ))}
+            </div>
+            <div style={{
+              fontSize: '0.9rem',
+              marginBottom: '0.5rem',
+              color: '#666'
+            }}>
+              Reading your codebase...
             </div>
             <div style={{ fontSize: '0.8rem', color: '#444' }}>
               This takes 10 to 30 seconds depending on repo size
@@ -213,18 +298,19 @@ function App() {
                 CODEBRIEF ANALYSIS
               </span>
               <button
-                onClick={() => navigator.clipboard.writeText(result)}
+                onClick={handleCopy}
                 style={{
-                  backgroundColor: 'transparent',
-                  border: '1px solid #333',
+                  backgroundColor: copied ? '#1a3a1a' : 'transparent',
+                  border: `1px solid ${copied ? '#2a5a2a' : '#333'}`,
                   borderRadius: '6px',
-                  color: '#888',
+                  color: copied ? '#4ade80' : '#888',
                   padding: '4px 12px',
                   fontSize: '0.8rem',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
                 }}
               >
-                Copy
+                {copied ? 'Copied ✓' : 'Copy'}
               </button>
             </div>
             {formatResult(result)}
@@ -248,10 +334,13 @@ function App() {
               alignItems: 'center',
               gap: '6px'
             }}>
-              <span style={{ color: '#333' }}>✓</span> {item}
+              <span style={{ color: '#333' }}>{'✓'}</span> {item}
             </div>
           ))}
         </div>
+
+        <Footer />
+
       </div>
     </div>
   )
