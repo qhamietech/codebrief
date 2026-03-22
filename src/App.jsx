@@ -84,12 +84,20 @@ When a user opens the app they either log in as a pet owner or register as a vol
     setTimeout(() => setShared(false), 3000)
   }
 
-  const handleEmailSubmit = (e) => {
-    e.preventDefault()
-    if (email.trim()) {
-      setEmailSent(true)
-    }
+  const handleEmailSubmit = async (e) => {
+  e.preventDefault()
+  if (!email.trim()) return
+  try {
+    await fetch('https://formspree.io/f/mojkzooo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    })
+    setEmailSent(true)
+  } catch {
+    setEmailSent(true)
   }
+}
 
   const formatResult = (text) => {
     return text.split('\n').map((line, i) => {
