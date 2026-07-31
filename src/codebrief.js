@@ -8,7 +8,7 @@ function parseGitHubUrl(url) {
   return { owner: match[1], repo: match[2].replace('.git', '') }
 }
 
-async function fetchRepoFiles(owner, repo) {
+async function fetchRepoTree(owner, repo) {
   const response = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`
   )
@@ -27,8 +27,39 @@ async function fetchRepoFiles(owner, repo) {
       const ext = f.path.split('.').pop().toLowerCase()
       return ['js','jsx','ts','tsx','py','html','css','json','md','env.example','prisma'].includes(ext)
     })
-    .slice(0, 20)
   return files
+}
+
+async function selectImportantFiles(files) {
+  const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' })
+  const fileList = files.map(f => `${f.path} (${f.size} bytes)`).join('\n')
+
+  const prompt = `You are a senior developer triaging an unfamiliar codebase before reading any file contents.
+
+Below is the full list of files in this repository, with their sizes. Based on file paths and names alone, select the 20 files that would be MOST IMPORTANT to read to understand what this project does and how it works. Prioritize entry points (main/index/app files), core business logic, routing, and key configuration. Deprioritize tests, styles, type definitions, and boilerplate unless nothing else is available. Always include a README if one exists.
+
+Return ONLY a JSON array of file path strings, nothing else, no markdown formatting, no explanation. Example: ["src/App.jsx", "src/index.js"]
+
+Files:
+${fileList}`
+
+  const result = await model.generateContent(prompt)
+  const response = await result.response
+  const text = response.text().trim()
+
+  const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+
+  let selectedPaths
+  try {
+    selectedPaths = JSON.parse(cleaned)
+  } catch {
+    selectedPaths = files.slice(0, 20).map(f => f.path)
+  }
+
+  const validPaths = new Set(files.map(f => f.path))
+  const finalPaths = selectedPaths.filter(p => validPaths.has(p))
+
+  return finalPaths.length > 0 ? finalPaths : files.slice(0, 20).map(f => f.path)
 }
 
 async function fetchFileContent(owner, repo, path) {
@@ -49,16 +80,18 @@ async function fetchFileContent(owner, repo, path) {
 
 export async function analyseRepo(url) {
   const { owner, repo } = parseGitHubUrl(url)
-  const files = await fetchRepoFiles(owner, repo)
+  const allFiles = await fetchRepoTree(owner, repo)
 
-  if (files.length === 0) {
+  if (allFiles.length === 0) {
     throw new Error('No readable files found in this repository.')
   }
 
+  const selectedPaths = await selectImportantFiles(allFiles)
+
   const fileContents = await Promise.all(
-    files.map(async (file) => {
-      const content = await fetchFileContent(owner, repo, file.path)
-      return { path: file.path, content }
+    selectedPaths.map(async (path) => {
+      const content = await fetchFileContent(owner, repo, path)
+      return { path, content }
     })
   )
 
@@ -88,7 +121,7 @@ Here is the codebase:
 
 ${codeContext}`
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+ const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' })
   const result = await model.generateContent(prompt)
   const response = await result.response
   return response.text()
